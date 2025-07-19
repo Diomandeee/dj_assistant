@@ -53,17 +53,34 @@ model TrackFeatures {
 }
 
 model UserPreferences {
-  id                        String   @id @default(cuid())
-  userId                    String?  @map("user_id")
-  transitionLengthPref      String?  @map("transition_length_preference")
-  energyProgression         String?  @map("energy_progression")
-  keyRelationshipPref       String?  @map("key_relationship_preference")
-  tempoVarianceTolerance    Float?   @map("tempo_variance_tolerance")
-  preferredTransitionTypes  Json?    @map("preferred_transition_types")
-  createdAt                 DateTime @default(now()) @map("created_at")
-  updatedAt                 DateTime @updatedAt @map("updated_at")
+  id                     String   @id @default(cuid())
+  userId                 String   @unique @map("user_id")
+  preferredGenres        Json     @default("[]") @map("preferred_genres")
+  tempoRange             Json     @default("{\"min\": 100, \"max\": 140}") @map("tempo_range")
+  energyProfile          Json     @default("{\"morning\": 0.6, \"afternoon\": 0.7, \"evening\": 0.8, \"night\": 0.5}") @map("energy_profile")
+  keyPreferences         Json     @default("[]") @map("key_preferences")
+  transitionStyle        String   @default("smooth") @map("transition_style")
+  averageSessionLength   Int      @default(30) @map("average_session_length")
+  skipThreshold          Float    @default(0.4) @map("skip_threshold")
+  favoriteArtists        Json     @default("[]") @map("favorite_artists")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  lastUpdated            DateTime @default(now()) @map("last_updated")
 
   @@map("user_preferences")
+}
+
+model UserAction {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  action         String   // 'like', 'skip', 'replay', 'transition_used', 'transition_rejected', 'manual_override'
+  trackId        String   @map("track_id")
+  targetTrackId  String?  @map("target_track_id") // For transitions
+  context        Json     @default("{}")
+  timestamp      DateTime @default(now())
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("user_actions")
 }
 
 model Playlist {
