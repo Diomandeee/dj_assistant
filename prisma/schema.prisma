@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Track {
+  id          String   @id @default(cuid())
+  filename    String
+  title       String?
+  artist      String?
+  duration    Float?
+  filePath    String   @map("file_path")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  features    TrackFeatures?
+  playlists   Playlist[]
+
+  @@map("tracks")
+}
+
+model TrackFeatures {
+  id                String   @id @default(cuid())
+  trackId           String   @unique @map("track_id")
+  tempo             Float?
+  musicalKey        String?  @map("musical_key")
+  energyLevel       Float?   @map("energy_level")
+  loudness          Float?
+  danceability      Float?
+  valence           Float?
+  spectralCentroid  Float?   @map("spectral_centroid")
+  spectralRolloff   Float?   @map("spectral_rolloff")
+  zeroCrossingRate  Float?   @map("zero_crossing_rate")
+  mfcc              Json?
+  chroma            Json?
+  beatPositions     Json?    @map("beat_positions")
+  structureSegments Json?    @map("structure_segments")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  track             Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@map("track_features")
+}
+
+model UserPreferences {
+  id                        String   @id @default(cuid())
+  userId                    String?  @map("user_id")
+  transitionLengthPref      String?  @map("transition_length_preference")
+  energyProgression         String?  @map("energy_progression")
+  keyRelationshipPref       String?  @map("key_relationship_preference")
+  tempoVarianceTolerance    Float?   @map("tempo_variance_tolerance")
+  preferredTransitionTypes  Json?    @map("preferred_transition_types")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  @@map("user_preferences")
+}
+
+model Playlist {
+  id                      String   @id @default(cuid())
+  name                    String?
+  seedTrackId             String   @map("seed_track_id")
+  trackOrder              Json?    @map("track_order")
+  transitionInstructions  Json?    @map("transition_instructions")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  seedTrack               Track    @relation(fields: [seedTrackId], references: [id])
+
+  @@map("playlists")
+}
