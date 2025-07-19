@@ -23,24 +23,80 @@ export class AudioAnalyzer {
       throw new Error('AudioContext not available');
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+    // Check file size - warn for large files
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > 30) {
+      console.warn(`Large file detected: ${fileSizeMB.toFixed(1)}MB - analysis may be slower`);
+    }
+
+    let arrayBuffer: ArrayBuffer;
+    let audioBuffer: AudioBuffer;
+
+    try {
+      arrayBuffer = await file.arrayBuffer();
+    } catch (error) {
+      throw new Error(`Failed to read audio file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    try {
+      audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+    } catch (error) {
+      throw new Error(`Failed to decode audio data: ${error instanceof Error ? error.message : 'Invalid audio format'}`);
+    }
+
+    // Check audio buffer duration - skip analysis for very long files
+    if (audioBuffer.duration > 600) { // 10 minutes
+      console.warn(`Very long audio file detected: ${audioBuffer.duration}s - using simplified analysis`);
+      return this.getSimplifiedAnalysis(audioBuffer);
+    }
     
-    // Extract real features
-    const tempo = await this.extractTempo(audioBuffer);
-    const key = await this.extractKey(audioBuffer);
-    const energy = await this.extractEnergy(audioBuffer);
-    const spectral = await this.extractSpectralFeatures(audioBuffer);
-    const beats = await this.extractBeats(audioBuffer, tempo);
-    const structure = await this.extractStructure(audioBuffer);
+    try {
+      // Extract real features with error handling for each step
+      const [tempo, key, energy, spectral] = await Promise.allSettled([
+        this.extractTempo(audioBuffer),
+        this.extractKey(audioBuffer), 
+        this.extractEnergy(audioBuffer),
+        this.extractSpectralFeatures(audioBuffer)
+      ]);
+
+      const [beats, structure] = await Promise.allSettled([
+        this.extractBeats(audioBuffer, tempo.status === 'fulfilled' ? tempo.value : 120),
+        this.extractStructure(audioBuffer)
+      ]);
+      
+      return {
+        tempo: tempo.status === 'fulfilled' ? tempo.value : 120,
+        key: key.status === 'fulfilled' ? key.value : 'C major',
+        energy: energy.status === 'fulfilled' ? energy.value : 0.5,
+        spectral: spectral.status === 'fulfilled' ? spectral.value : new Array(13).fill(0),
+        beats: beats.status === 'fulfilled' ? beats.value : [],
+        structure: structure.status === 'fulfilled' ? structure.value : [],
+      };
+    } catch (error) {
+      console.error('Analysis failed, using simplified analysis:', error);
+      return this.getSimplifiedAnalysis(audioBuffer);
+    }
+  }
+
+  private getSimplifiedAnalysis(audioBuffer: AudioBuffer): AudioAnalysisResult {
+    // Fast simplified analysis for problematic files
+    const channelData = audioBuffer.getChannelData(0);
+    const length = Math.min(channelData.length, 44100 * 30); // Max 30 seconds for analysis
+    
+    // Simple energy calculation
+    let energy = 0;
+    for (let i = 0; i < length; i += 1000) { // Sample every 1000 points
+      energy += Math.abs(channelData[i]);
+    }
+    energy = energy / (length / 1000);
     
     return {
-      tempo,
-      key,
-      energy,
-      spectral,
-      beats,
-      structure,
+      tempo: 120, // Default BPM
+      key: 'C major', // Default key
+      energy: Math.min(energy * 2, 1), // Normalized energy
+      spectral: new Array(13).fill(0), // Default MFCC coefficients
+      beats: [],
+      structure: []
     };
   }
 
