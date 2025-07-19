@@ -17,7 +17,9 @@ export default function HomePage() {
   const [selectedSeedTrack, setSelectedSeedTrack] = useState<Track | null>(null);
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [isGeneratingPlaylist, setIsGeneratingPlaylist] = useState(false);
+  const [isLoadingTracks, setIsLoadingTracks] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tracksError, setTracksError] = useState<string | null>(null);
   
   // User context for learning system
   const [userId] = useState('demo-user'); // In a real app, this would come from authentication
@@ -28,19 +30,27 @@ export default function HomePage() {
   }, []);
 
   const loadTracks = async () => {
+    setIsLoadingTracks(true);
+    setTracksError(null);
+    
     try {
       const response = await fetch('/api/tracks');
-      if (response.ok) {
-        const data = await response.json();
-        setTracks(data);
+      if (!response.ok) {
+        throw new Error(`Failed to load tracks: ${response.status} ${response.statusText}`);
       }
+      const data = await response.json();
+      setTracks(data);
     } catch (error) {
       console.error('Error loading tracks:', error);
+      setTracksError(error instanceof Error ? error.message : 'Failed to load tracks');
+    } finally {
+      setIsLoadingTracks(false);
     }
   };
 
   const handleTrackUploaded = (newTrack: Track) => {
-    setTracks(prev => [...prev, newTrack]);
+    setTracks(prev => [newTrack, ...prev]);
+    setTracksError(null); // Clear any previous errors
   };
 
   const handleSeedTrackSelect = (track: Track) => {
@@ -69,7 +79,8 @@ export default function HomePage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate playlist');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to generate playlist: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -83,6 +94,7 @@ export default function HomePage() {
 
       setPlaylist(playlistItems);
     } catch (error) {
+      console.error('Playlist generation error:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate playlist');
     } finally {
       setIsGeneratingPlaylist(false);
@@ -92,6 +104,10 @@ export default function HomePage() {
   const handlePlaylistTrackSelect = (track: Track) => {
     console.log('Selected playlist track:', track);
     // Could open track details, start playback, etc.
+  };
+
+  const retryLoadTracks = () => {
+    loadTracks();
   };
 
   return (
@@ -122,11 +138,49 @@ export default function HomePage() {
 
             {/* Track Library */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Track Library ({tracks.length})
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Track Library ({tracks.length})
+                </h2>
+                {tracksError && (
+                  <button
+                    onClick={retryLoadTracks}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    disabled={isLoadingTracks}
+                  >
+                    {isLoadingTracks ? 'Loading...' : 'Retry'}
+                  </button>
+                )}
+              </div>
               
-              {tracks.length === 0 ? (
+              {/* Loading State */}
+              {isLoadingTracks ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="bg-gray-200 rounded p-3 h-16"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : tracksError ? (
+                /* Error State */
+                <div className="text-center py-8">
+                  <div className="text-red-400 mb-2">
+                    <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <p className="text-red-600 text-sm font-medium">Failed to load tracks</p>
+                  <p className="text-red-500 text-xs mt-1">{tracksError}</p>
+                  <button
+                    onClick={retryLoadTracks}
+                    className="mt-3 bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded text-sm"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : tracks.length === 0 ? (
+                /* Empty State */
                 <div className="text-center py-8">
                   <div className="text-gray-400 mb-2">
                     <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,6 +191,7 @@ export default function HomePage() {
                   <p className="text-gray-400 text-xs mt-1">Upload audio files to get started</p>
                 </div>
               ) : (
+                /* Track List */
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {tracks.map((track) => (
                     <div
@@ -210,14 +265,23 @@ export default function HomePage() {
 
               {error && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                  {error}
+                  <div className="flex items-center space-x-2">
+                    <span className="text-red-500">⚠️</span>
+                    <span>{error}</span>
+                    <button
+                      onClick={() => setError(null)}
+                      className="ml-auto text-red-600 hover:text-red-800"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               )}
 
               <div className="flex items-center space-x-4">
                 <button
                   onClick={generatePlaylist}
-                  disabled={!selectedSeedTrack || isGeneratingPlaylist}
+                  disabled={!selectedSeedTrack || isGeneratingPlaylist || tracks.length < 2}
                   className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-colors"
                 >
                   {isGeneratingPlaylist ? (
@@ -236,6 +300,16 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
+
+              {/* Generation Requirements */}
+              {tracks.length < 2 && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <span>💡</span>
+                    <span>Upload at least 2 tracks to generate a playlist</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Playlist Display */}
