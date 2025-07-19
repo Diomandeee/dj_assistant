@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { TrackUploader } from './components/ui/TrackUploader';
 import { PlaylistDisplay } from './components/ui/PlaylistDisplay';
-import { Track } from '@/types';
+import { Track, CompatibilityScore } from '@/types';
 
 interface PlaylistItem {
   track: Track;
   position: number;
-  compatibilityScore?: any;
+  compatibilityScore?: CompatibilityScore;
 }
 
 export default function Home() {

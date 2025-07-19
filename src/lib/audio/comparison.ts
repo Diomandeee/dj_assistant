@@ -3,10 +3,10 @@ import { TrackFeatures, CompatibilityScore } from '@/types';
 export class TrackComparator {
   
   calculateCompatibility(track1: TrackFeatures, track2: TrackFeatures): CompatibilityScore {
-    const tempo = this.calculateTempoCompatibility(track1.tempo || 120, track2.tempo || 120);
-    const key = this.calculateKeyCompatibility(track1.musicalKey || 'C', track2.musicalKey || 'C');
-    const energy = this.calculateEnergyCompatibility(track1.energyLevel || 0.5, track2.energyLevel || 0.5);
-    const spectral = this.calculateSpectralCompatibility(track1.spectralCentroid || 0, track2.spectralCentroid || 0);
+    const tempo = this.calculateTempoCompatibility(track1.tempo ?? 120, track2.tempo ?? 120);
+    const key = this.calculateKeyCompatibility(track1.musicalKey ?? 'C', track2.musicalKey ?? 'C');
+    const energy = this.calculateEnergyCompatibility(track1.energyLevel ?? 0.5, track2.energyLevel ?? 0.5);
+    const spectral = this.calculateSpectralCompatibility(track1.spectralCentroid ?? 0, track2.spectralCentroid ?? 0);
     const rhythm = this.calculateRhythmCompatibility(track1, track2);
 
     // Weighted overall compatibility
@@ -48,7 +48,7 @@ export class TrackComparator {
 
   private calculateKeyCompatibility(key1: string, key2: string): number {
     // Circle of fifths compatibility
-    const circleOfFifths = {
+    const circleOfFifths: Record<string, number> = {
       'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5,
       'F#': 6, 'C#': 7, 'G#': 8, 'D#': 9, 'A#': 10, 'F': 11,
       'Cm': 12, 'Gm': 13, 'Dm': 14, 'Am': 15, 'Em': 16, 'Bm': 17,
@@ -84,11 +84,9 @@ export class TrackComparator {
   }
 
   private calculateRhythmCompatibility(track1: TrackFeatures, track2: TrackFeatures): number {
-    // Placeholder for rhythm pattern comparison
-    // This would normally compare actual rhythm patterns
-    // For now, use a simple heuristic based on tempo similarity
-    const tempo1 = track1.tempo || 120;
-    const tempo2 = track2.tempo || 120;
+    // Use tempo similarity as rhythm compatibility proxy
+    const tempo1 = track1.tempo ?? 120;
+    const tempo2 = track2.tempo ?? 120;
     
     const tempoRatio = Math.min(tempo1, tempo2) / Math.max(tempo1, tempo2);
     return tempoRatio;

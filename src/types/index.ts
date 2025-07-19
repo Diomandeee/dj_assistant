@@ -13,19 +13,19 @@ export interface Track {
 export interface TrackFeatures {
   id: string;
   trackId: string;
-  tempo?: number;
-  musicalKey?: string;
-  energyLevel?: number;
-  loudness?: number;
-  danceability?: number;
-  valence?: number;
-  spectralCentroid?: number;
-  spectralRolloff?: number;
-  zeroCrossingRate?: number;
-  mfcc?: number[];
-  chroma?: number[];
-  beatPositions?: number[];
-  structureSegments?: StructureSegment[];
+  tempo?: number | null;
+  musicalKey?: string | null;
+  energyLevel?: number | null;
+  loudness?: number | null;
+  danceability?: number | null;
+  valence?: number | null;
+  spectralCentroid?: number | null;
+  spectralRolloff?: number | null;
+  zeroCrossingRate?: number | null;
+  mfcc?: number[] | null;
+  chroma?: number[] | null;
+  beatPositions?: number[] | null;
+  structureSegments?: StructureSegment[] | null;
   createdAt: Date;
 }
 
